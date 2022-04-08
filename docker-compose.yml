@@ -1,0 +1,50 @@
+version: "3.9"
+services:
+  postgresql:
+    image: docker.io/bitnami/postgresql:11
+    volumes:
+      - ../.postgresdata:/var/lib/postgresql/data
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+  pgbouncer:
+    image: docker.io/bitnami/pgbouncer:1
+    ports:
+      - 6432:6432
+    environment:
+      - POSTGRESQL_HOST=postgresql
+      - PGBOUNCER_AUTH_TYPE=trust
+    volumes:
+      - ./pgbouncer.ini:/bitnami/pgbouncer/conf/pgbouncer.ini
+  web:
+    tty: true
+    stdin_open: true
+    build:
+      context: ./crow
+    depends_on:
+      - postgresql
+      - pgbouncer
+    environment:
+      - RAILS_MAX_THREADS=5
+      - WEB_CONCURRENCY=1
+
+      # Set PG_BOUNCER to direct connection to pgbouncer
+      # Set POSTGRES to direct connection to postgres
+      - DB_ENV_PREFIX=PG_BOUNCER
+
+      # postgres
+      - POSTGRES_DATABASE_HOST=postgresql
+      - POSTGRES_DATABASE_USERNAME=postgres
+      - POSTGRES_DATABASE_PORT=5432
+
+      # pgbouncer
+      - PG_BOUNCER_DATABASE_HOST=pgbouncer
+      - PG_BOUNCER_DATABASE_USERNAME=postgres
+      - PG_BOUNCER_DATABASE_PORT=6432
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./crow:/app
+    command: sh -c "tail -f /dev/null"
+
+volumes:
+  crow_box:
